@@ -9,7 +9,7 @@ First step is to clone the repository
 
 Once the repository is cloned, enter the repositorie's folder and remove the hidden folder **.git** to remove git traces
 	
-	rm {{repositorie's folder}}/.git
+	rm -rf .git
 
 And after all, install the dependencies with npm or yarn
 	
@@ -19,4 +19,4 @@ And after all, install the dependencies with npm or yarn
 
 To setup the development server, just execute the following command
 	
-	npm run dev
+	npm run serve:{{environment do you want to use}}
