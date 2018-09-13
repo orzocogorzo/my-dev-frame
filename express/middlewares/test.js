@@ -1,10 +1,10 @@
-const middle = function(){
-	this.done = function(){};
-	this.do = function( req, res ){
-		setTimeout((() => {
+const middle = function( ) {
+	this.done = function( ) {};
+	this.do = function( req, res ) {
+		setTimeout((( ) => {
 			// console.log( '\nmidleware were here!\n');
 			this.done( req, res );
-    }), 500);
+    }), 500 );
 	}
 };
 

@@ -17,6 +17,7 @@ function setupConfig(){
   config.api.set('entry',config.entry);
   config.api.set('module.rules', config.module.rules);
   config.api.set('plugins', config.plugins);
+  config.api.set('resolve', config.resolve);
   // config.api.set('context', path.resolve(__dirname));
 };
 
@@ -28,25 +29,66 @@ function flagMatcher(flag){
   envConfig[name.replace(/\-+/,'')] = val || true;
 }
 
-function registerEnvironment(callback){
-  const environments =  require(config.envFile); //require('../environments.js');
+function registerEnvironment( callback ) {
+  const environments =  require( config.envFile ); //require('../environments.js');
 
-  if (!environments[envConfig["env"]]) {
+  if ( !environments[ envConfig[ "env" ]] ) {
     console.warn("Not recognized environment declaration. Working with default config");
   };
   
-  envConfig["env"] = env = environments[envConfig["env"]] || { 
+  envConfig[ "env" ] = env = environments[ envConfig[ "env" ]] || { 
     name: 'development',
     apiURL: 'data/json'
   };
 
-  fs.writeFile( path.resolve( config.distDir, 'environment.js' ), ' window.environment='+JSON.stringify(env)+';', function( err ) {
+  fs.writeFile( path.resolve( config.distDir, 'environment.js' ), ' window.environment='+JSON.stringify( env )+';', function( err ) {
     if ( err ) {
       console.log('Error on writing env dist file\n');
       return;
     };
     console.log('Environment variable registered with exit. Defined as ' + env.name);
     callback();
+  });
+}
+
+function registerLivereload( register ) {
+  let scriptContent = register ? 'document.write(\'<script src="http://\'\n\t+ (location.host || \'localhost\').split(\':\')[0]\n\t+ \':35729/livereload.js"></\'\n\t+ \'script>\')' : '';
+  fs.writeFile( path.resolve( config.distDir, 'livereload.js' ), scriptContent, function( err ) {
+    if ( err ) {
+      console.log( 'Error while writing the livereload script\n' );
+      return;
+    };
+    console.log( 'Livereload script registered!' );
+  });
+}
+
+function setupPWA( ) {
+  fs.readFile( path.resolve( __dirname, '../pwa/manifest.json' ), 'utf-8', ( err, data ) => {
+    if ( err ) throw err;
+    fs.writeFile( path.resolve( config.distDir, 'manifest.json' ), data, function( err ) {
+      if ( err ) throw err;
+      fs.copy( path.resolve( __dirname, '../pwa/icons' ), path.resolve( config.distDir, 'icons' ), err => {
+        if ( err ) throw err;
+        fs.readFile( path.resolve( __dirname, '../pwa/service-worker.js' ), 'utf-8', ( err, data ) => {
+          if ( err ) throw err;
+          fs.writeFile( path.resolve( config.distDir, 'service-worker.js' ), data, function( err ) {
+            if ( err ) throw err;
+            console.log( 'PWA setted up!' );
+          });
+        });
+      });
+    });
+  });
+}
+
+function removeMainHash() {
+  fs.readFile( path.resolve( config.distDir, 'index.html' ), 'utf-8', ( err, data ) => {
+    if ( err ) throw err;
+    data = data.replace(/main.js[^"]+/,'main.js')
+    fs.writeFile( path.resolve( config.distDir, 'index.html' ), data, err => {
+      if ( err ) throw err;
+      console.log( 'Hash removed!' );
+    });
   });
 }
 
@@ -64,41 +106,34 @@ function request( host, req, res, filePath, redirect ) {
   if ( !host && (host === "localhost" || host === "local" )) {
     filePath = path.resolve( config.root, filePath );
     fs.exists( filePath, ( exists ) => {
-      if (exists){
+      if ( exists ) {
         var stats = fs.statSync( filePath );
-        if (!stats.isFile()){
-          if (redirect){
+        if ( !stats.isFile() ){
+          if ( redirect ) {
             filePath = path.resolve( config.root, config.distDir, 'index.html' );
           } else {
-            res.sendStatus(404);
+            res.sendStatus( 404 );
             return;
           }
         };
       } else {
-        if (redirect) {
+        if ( redirect ) {
           filePath = path.resolve( config.root, config.distDir, 'index.html' );
         } else {
-          res.sendStatus(404);
+          res.sendStatus( 404 );
           return;
         }
       };
-      fs.exists( filePath, ( exists ) => {
-        if (exists) {
-          fs.readFile( filePath, 'utf-8', ( err, data ) => {
-            res.send( data );
-          });
-        } else {
-          res.sendStatus(404);
-          return;
-        }
+      fs.readFile( filePath, 'utf-8', ( err, data ) => {
+        res.send( data );
       });
     });
   } else {
     // filePath = filePath.replace(new RegExp(`${config.dataDir}\/`),'');
-    let req = http.get( host + '/' + filePath, (_res) => {
+    let req = http.get( host + '/' + filePath, ( _res ) => {
       _res.setEncoding("utf8");
       let body = "";
-      _res.on("data", data => {
+      _res.on( "data", data => {
         body += data;
       }).on("end", () => {
         res.send( body );
@@ -122,21 +157,56 @@ function response( host, req, res, filePath, redirect ) {
   }
 }
 
+function getMongoDB() {
+  var URI = process.env.MONGODB_URI; 
+  MongoClient.connect(URI, function(err, db) {
+    if (err) throw err;
+    database = db.db("heroku_k9l4gvz8");
+  });
+}
+
 function setupApp(){
   var app = express();
+  app.use(bodyParser.json());
 
   app.get('/', ( req, res ) => {
-    response( 'localhost', req, res, config.distDir + '/index.html', false );
+    res.setHeader('Content-Type','text/html');
+    response( envConfig.env.host, req, res, config.distDir + '/index.html', false );
   });
 
   app.get('/environment.js', ( req, res ) => {
-    response( 'localhost', req, res, config.distDir + '/environment.js', false );
+    res.setHeader('Content-Type','text/javascript');
+    response( envConfig.env.host, req, res, config.distDir + '/environment.js', false );
   });
 
   app.get('/main.js', ( req, res ) => {
-    response( 'localhost', req, res, config.distDir + '/main.js', false );
+    res.setHeader('Content-Type','text/javascript');
+    response( envConfig.env.host, req, res, config.distDir + '/main.js', false );
   });
 
+  app.get('/service-worker.js', ( req, res ) => {
+    res.setHeader('Content-Type','text/javascript');
+    response( envConfig.env.host, req, res, config.distDir + '/service-worker.js', false );
+  });
+
+  app.get('/icons/:icon', ( req, res ) => {
+    res.setHeader('Content-Type','image/png');
+    res.sendFile( path.resolve( config.distDir, 'icons', req.params.icon ) );
+    // response( envConfig.env.host, req, res, config.distDir + '/icons/' + req.params.icon, false );
+  });
+
+  app.post('/bulk', ( req, res ) => {
+    if ( database ) {
+      database.collection('responses').insertOne( req.body, function( err, source ) {
+        if ( err ) throw err;
+        res.sendStatus(200);
+      });
+    } else {
+      console.log( req.body );
+      res.sendStatus(200);
+    }
+  });
+  
   app.get(buildRegex(), ( req, res ) => {
     var redirectPath = req.params[0].replace(new RegExp(`\/${envConfig.env.basehref}\/`),'');
     if ( !envConfig.env.host && ( envConfig.env.host != "localhost" || envConfig.env.host != "local" )) {
