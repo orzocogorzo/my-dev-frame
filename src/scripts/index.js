@@ -1,3 +1,28 @@
-import alertFn from './test';
+import Vue from 'vue';
 
-document.body.innerText = 'Hello world from Webpack Dev Server, but watching?';
+import initService from './http/init.js';
+import App from './App.vue';
+import EventBus from './bus/EventBus.js';
+
+import store from './store/index.js';
+import router from './router/index.js';
+
+window.globalEventBus = new EventBus();
+
+initService.get()
+  .then(res => {
+    new Vue({
+      el: '#app',
+      bus: new EventBus(),
+      store,
+      router,
+      components: { App },
+      template: '<App/>',
+      created () {
+        this.$store.commit('init/data');
+      }
+    });
+  }).catch(err => {
+    console.log("error catched on the init request");
+    console.error(err);
+  })

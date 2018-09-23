@@ -8,9 +8,6 @@ const envConfig = new Object();
 
 const http = require('http');
 const express = require('express');
-//const livereload = require('express-livereload');
-const reload = require('./liveserver');
-
 
 function setupConfig(){
   config.api.set('output',config.output);
@@ -18,7 +15,6 @@ function setupConfig(){
   config.api.set('module.rules', config.module.rules);
   config.api.set('plugins', config.plugins);
   config.api.set('resolve', config.resolve);
-  // config.api.set('context', path.resolve(__dirname));
 };
 
 var LISTENING=false;
@@ -29,7 +25,7 @@ function flagMatcher(flag){
   envConfig[name.replace(/\-+/,'')] = val || true;
 }
 
-function registerEnvironment( callback ) {
+function registerEnvironment (callback) {
   const environments = require(config.envFile);
 
   if (!environments[envConfig["env"]]) {
@@ -56,29 +52,35 @@ function registerEnvironment( callback ) {
   });
 }
 
-function registerLivereload( register ) {
-  let scriptContent = register ? 'document.write(\'<script src="http://\'\n\t+ (location.host || \'localhost\').split(\':\')[0]\n\t+ \':35729/livereload.js"></\'\n\t+ \'script>\')' : '';
-  fs.writeFile(path.resolve(config.distDir, 'livereload.js'), scriptContent, function (err) {
-    if (err) {
-      console.log( 'Error while writing the livereload script\n' );
-      return;
-    };
-    console.log( 'Livereload script registered!' );
+function attachScript (script, place, src) {
+  place = place == "head" || place == "body" ? place : "head"; 
+  fs.readFile(path.resolve(config.distDir, 'index.html'), 'utf-8', (err, data) => {
+    if (err) throw err;
+    scriptTag = `<script src="${src}" type="application/javascript">${script}</script>`;
+    data = data.replace(RegExp(`<!-- {{${place}}} -->`,'g'), `<!-- {{${place}}} -->\n${scriptTag}`);
+    fs.writeFile(path.resolve(config.distDir, 'index.html'), data, err => {
+      if (err) throw err;
+      console.log('Script attached on ' + place);
+    });
   });
 }
 
-function setupPWA( ) {
-  fs.readFile( path.resolve( __dirname, '../pwa/manifest.json' ), 'utf-8', ( err, data ) => {
-    if ( err ) throw err;
-    fs.writeFile( path.resolve( config.distDir, 'manifest.json' ), data, function( err ) {
-      if ( err ) throw err;
-      fs.copy( path.resolve( __dirname, '../pwa/icons' ), path.resolve( config.distDir, 'icons' ), err => {
-        if ( err ) throw err;
-        fs.readFile( path.resolve( __dirname, '../pwa/service-worker.js' ), 'utf-8', ( err, data ) => {
-          if ( err ) throw err;
-          fs.writeFile( path.resolve( config.distDir, 'service-worker.js' ), data, function( err ) {
-            if ( err ) throw err;
-            console.log( 'PWA setted up!' );
+function registerLivereload () {
+  attachScript('', 'body','http://localhost:35729/livereload.js');
+}
+
+function setupPWA () {
+  fs.readFile(path.resolve(__dirname, '../pwa/manifest.json'), 'utf-8', (err, data) => {
+    if (err) throw err;
+    fs.writeFile(path.resolve(config.distDir, 'manifest.json'), data, function(err) {
+      if (err) throw err;
+      fs.copy(path.resolve(__dirname, '../pwa/icons'), path.resolve(config.distDir, 'icons'), err => {
+        if (err) throw err;
+        fs.readFile(path.resolve(__dirname, '../pwa/service-worker.js'), 'utf-8', (err, data) => {
+          if (err) throw err;
+          fs.writeFile(path.resolve(config.distDir, 'service-worker.js'), data, function (err) {
+            if (err) throw err;
+            console.log('PWA setted up!');
           });
         });
       });
@@ -86,13 +88,14 @@ function setupPWA( ) {
   });
 }
 
-function removeMainHash() {
-  fs.readFile( path.resolve( config.distDir, 'index.html' ), 'utf-8', ( err, data ) => {
-    if ( err ) throw err;
-    data = data.replace(/main.js[^"]+/,'main.js')
-    fs.writeFile( path.resolve( config.distDir, 'index.html' ), data, err => {
-      if ( err ) throw err;
-      console.log( 'Hash removed!' );
+function removeMainHash (callback) {
+  return fs.readFile(path.resolve(config.distDir, 'index.html'), 'utf-8', (err, data) => {
+    if (err) throw err;
+    data = data.replace(/main.js[^"]+/, 'main.js');
+    fs.writeFile(path.resolve(config.distDir, 'index.html'), data, err => {
+      if (err) throw err;
+      console.log('Hash removed!');
+      callback()
     });
   });
 }
@@ -109,42 +112,47 @@ function buildRegex (urlParam) {
 
 function request (host, req, res, filePath, redirect) {
   if ( !host || (host === "localhost" || host === "local" || host == "127.0.0.1" )) {
-    filePath = path.resolve( config.root, filePath );
-    fs.exists( filePath, ( exists ) => {
-      if ( exists ) {
-        var stats = fs.statSync( filePath );
-        if ( !stats.isFile() ){
-          if ( redirect ) {
-            filePath = path.resolve( config.root, config.distDir, 'index.html' );
+    filePath = path.resolve(config.root, filePath);
+    fs.exists(filePath, (exists) => {
+      if (exists) {
+        var stats = fs.statSync(filePath);
+        if (!stats.isFile()) {
+          if (redirect) {
+            filePath = path.resolve(config.root, config.distDir, 'index.html');
           } else {
-            res.sendStatus( 404 );
+            res.sendStatus(404);
             return;
           }
         };
       } else {
-        if ( redirect ) {
-          filePath = path.resolve( config.root, config.distDir, 'index.html' );
+        if (redirect) {
+          filePath = path.resolve(config.root, config.distDir, 'index.html');
         } else {
-          res.sendStatus( 404 );
-          return;
+          if (req.headers["accept"].indexOf('text/html') >= 0) {
+            filePath = path.resolve(config.root, config.distDir, 'index.html');
+          } else {
+            res.sendStatus(404);
+            return;
+          };
+
         }
       };
-      fs.readFile( filePath, 'utf-8', ( err, data ) => {
-        res.send( data );
+      fs.readFile(filePath, 'utf-8', (err, data) => {
+        res.send(data);
       });
     });
   } else {
     let req = http.get(host+filePath, ( _res ) => {
       _res.setEncoding("utf8");
       let body = "";
-      _res.on( "data", data => {
+      _res.on("data", data => {
         body += data;
       }).on("end", () => {
-        res.send( body );
+        res.send(body);
       });
     });
 
-    req.on('error', function(e) {
+    req.on('error', function (e) {
       console.log('ERROR: ' + e.message);
     });
   }
@@ -161,7 +169,7 @@ function response(host, req, res, filePath, redirect) {
   }
 }
 
-function getMongoDB() {
+function getMongoDB () {
   var URI = process.env.MONGODB_URI; 
   MongoClient.connect(URI, function(err, db) {
     if (err) throw err;
@@ -169,7 +177,7 @@ function getMongoDB() {
   });
 }
 
-function setupApp(){
+function setupApp () {
   var app = express();
   app.use(bodyParser.json());
 
@@ -178,7 +186,7 @@ function setupApp(){
     response('', req, res, config.distDir + '/index.html', false);
   });
 
-  app.get('/environment.js', ( req, res ) => {
+  app.get('/environment.js', (req, res) => {
     res.setHeader('Content-Type','application/javascript');
     response('', req, res, config.distDir + '/environment.js', false);
   });
@@ -211,9 +219,9 @@ function setupApp(){
   //   }
   // });
   
-  app.get(buildRegex(), ( req, res ) => {
+  app.get(buildRegex(), (req, res) => {
     var redirectPath = req.params[0].replace(new RegExp(`\/${envConfig.env.basehref}\/`),'');
-    if ( !envConfig.env.host || ( envConfig.env.host != "localhost" && envConfig.env.host != "local" )) {
+    if (!envConfig.env.host || (envConfig.env.host != "localhost" && envConfig.env.host != "local")) {
       if (redirectPath.indexOf(envConfig.env.apiURL) >= 0) {
         // Local API ROUTE
         redirectPath = redirectPath.replace(new RegExp(`\/${envConfig.env.apiURL}\/`),'');
@@ -231,7 +239,7 @@ function setupApp(){
   return app;
 ;}
 
-function main(){
+function main () {
   // register env flags as config object
   process.argv.slice(2).forEach(function (val, index, array) {
     flagMatcher(val);
@@ -254,15 +262,13 @@ function main(){
       setupConfig();
 
       function startApp () {
-        if (LISTENING) {return};
+        if (LISTENING) return;
         // Serve the files on port 8000.
         server = http.createServer(app);
-        
-        // server livereload
-        reload(app);
 
-        // browser livereload
-        // livereload(app, {watchDir: config.srcDir});
+        //remove hash
+        //attach livereload script
+        removeMainHash(registerLivereload)
 
         server.listen(app.get('port'), function () {
           console.log('Webpack watching for changes and app listening on port '+envConfig.port+'!\n');
