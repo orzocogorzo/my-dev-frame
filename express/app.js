@@ -52,7 +52,7 @@ function registerEnvironment (callback) {
   });
 }
 
-function attachScript (script, place, src) {
+function attachScript (script, place, src, callback) {
   place = place == "head" || place == "body" ? place : "head"; 
   fs.readFile(path.resolve(config.distDir, 'index.html'), 'utf-8', (err, data) => {
     if (err) throw err;
@@ -61,12 +61,9 @@ function attachScript (script, place, src) {
     fs.writeFile(path.resolve(config.distDir, 'index.html'), data, err => {
       if (err) throw err;
       console.log('Script attached on ' + place);
+      callback()
     });
   });
-}
-
-function registerLivereload () {
-  attachScript('', 'body','http://localhost:35729/livereload.js');
 }
 
 function setupPWA () {
@@ -88,6 +85,14 @@ function setupPWA () {
   });
 }
 
+function modifyIndexContents (callback) {
+  removeMainHash(() => {
+    attachScript('', 'body','http://localhost:35729/livereload.js', callback, () => {
+      callback()
+    })
+  })
+
+}
 function removeMainHash (callback) {
   return fs.readFile(path.resolve(config.distDir, 'index.html'), 'utf-8', (err, data) => {
     if (err) throw err;
@@ -234,7 +239,7 @@ function setupApp () {
     }
   });
 
-  app.set('port', envConfig.port || 8000);
+  app.set('port', envConfig.port);
 
   return app;
 ;}
@@ -250,8 +255,13 @@ function main () {
   if (envConfig["dev"] || !envConfig["build"]) {
 
     if (!envConfig["dev"]) {
-      console.warn( "Unrecognized target action. Fired development mode by default" );
+      console.warn("Unrecognized target action. Fired development mode by default");
     };
+
+    if (!envConfig.port) {
+      envConfig.port = 8000;
+      console.warn("Port not declared, set port 8000 by default")
+    }
 
     function callback () {
       const app = setupApp();
@@ -268,12 +278,13 @@ function main () {
 
         //remove hash
         //attach livereload script
-        removeMainHash(registerLivereload)
-
-        server.listen(app.get('port'), function () {
-          console.log('Webpack watching for changes and app listening on port '+envConfig.port+'!\n');
-          LISTENING=true;
-        });
+        //start app
+        modifyIndexContents(() => {
+          server.listen(app.get('port'), function () {
+            console.log('Webpack watching for changes and app listening on port '+envConfig.port+'!\n');
+            LISTENING=true;
+          });
+        })
       };
 
       compiler = webpack(config.api.get(), (err, stats) => {

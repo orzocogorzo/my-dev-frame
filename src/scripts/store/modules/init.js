@@ -5,7 +5,7 @@ const state = {
 
 // The only way to actually change state in a Vuex store is by committing a mutation.
 // Mutations are synchronous transactions. You can commit mutations in components with this.$store.commit('xxx')
-const mutations = { 
+const mutations = {
   data (state, data) {
     state.data = data;
   }
