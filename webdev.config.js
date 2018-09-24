@@ -7,7 +7,7 @@ const config = {
 	distDir: path.resolve(__dirname, 'dist'),
   srcDir: path.resolve(__dirname, 'src'),
   dataDir: path.resolve(__dirname, 'src/data'),
-  entry: path.resolve(__dirname, "src/scripts/index.js"),
+  entry: path.resolve(__dirname, "src/index.js"),
   output: {
       path: path.resolve(__dirname, 'dist'),
       filename: 'main.js'
@@ -25,7 +25,12 @@ const config = {
       hash: true,
       cache: true
     }),
-    new WebpackLiveReload()
+    new WebpackLiveReload({
+      port: 35729,
+      host: "localhost",
+      appendScriptTag: true,
+      delay: 200
+    })
   ],
   context: path.resolve(__dirname),
   resolve: {

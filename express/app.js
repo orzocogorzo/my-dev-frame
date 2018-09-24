@@ -87,9 +87,10 @@ function setupPWA () {
 
 function modifyIndexContents (callback) {
   removeMainHash(() => {
-    attachScript('', 'body','http://localhost:35729/livereload.js', callback, () => {
-      callback()
-    })
+    // attachScript('', 'body','http://localhost:35729/livereload.js', callback, () => {
+    //   callback()
+    // })
+    callback()
   })
 
 }

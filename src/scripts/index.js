@@ -7,9 +7,11 @@ import EventBus from './bus/EventBus.js';
 import store from './store/index.js';
 import router from './router/index.js';
 
-window.globalEventBus = new EventBus();
+export function startApp () {
+  
+  window.globalEventBus = new EventBus();
 
-initService.get()
+  initService.get()
   .then(res => {
     new Vue({
       el: '#app',
@@ -19,10 +21,11 @@ initService.get()
       components: { App },
       template: '<App/>',
       created () {
-        this.$store.commit('init/data');
+        this.$store.commit('init/data', res);
       }
     });
   }).catch(err => {
     console.log("error catched on the init request");
     console.error(err);
-  })
+  });
+}
