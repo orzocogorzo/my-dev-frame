@@ -143,9 +143,14 @@ function request (host, req, res, filePath, redirect) {
 
         }
       };
-      fs.readFile(filePath, 'utf-8', (err, data) => {
-        res.send(data);
-      });
+      if (req.headers["accept"].indexOf("image") >= 0) {
+          res.sendFile(filePath);
+      } else {
+        fs.readFile(filePath, 'utf-8', (err, data) => {
+          res.send(data);
+        });
+      }
+
     });
   } else {
     let req = http.get(host+filePath, ( _res ) => {
