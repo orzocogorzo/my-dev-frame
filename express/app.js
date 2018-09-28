@@ -1,4 +1,4 @@
-const fs = require('fs');
+const fs = require('fs-extra');
 const path = require('path');
 
 const webpack = require('webpack');
@@ -43,11 +43,11 @@ function registerEnvironment (callback) {
 
   fs.writeFile(path.resolve(config.distDir, 'environment.js'), ' window.environment='+JSON.stringify(env)+';', function (err) {
     if (err) {
-      console.log('Error on writing env dist file\n');
+      log('Error on writing env dist file\n');
       return;
     };
 
-    console.log('Environment variable registered with exit. Defined as ' + env.name);
+    log('Environment variable registered with exit. Defined as ' + env.name);
     callback();
   });
 }
@@ -60,7 +60,7 @@ function attachScript (script, place, src, callback) {
     data = data.replace(RegExp(`<!-- {{${place}}} -->`,'g'), `<!-- {{${place}}} -->\n${scriptTag}`);
     fs.writeFile(path.resolve(config.distDir, 'index.html'), data, err => {
       if (err) throw err;
-      console.log('Script attached on ' + place);
+      log('Script attached on ' + place);
       callback()
     });
   });
@@ -77,7 +77,7 @@ function setupPWA () {
           if (err) throw err;
           fs.writeFile(path.resolve(config.distDir, 'service-worker.js'), data, function (err) {
             if (err) throw err;
-            console.log('PWA setted up!');
+            log('PWA setted up!');
           });
         });
       });
@@ -85,22 +85,22 @@ function setupPWA () {
   });
 }
 
-function modifyIndexContents (callback) {
-  removeMainHash(() => {
-    // attachScript('', 'body','http://localhost:35729/livereload.js', callback, () => {
-    //   callback()
-    // })
-    callback()
-  })
+// function moveStaticsDir (callback) {
+//   fs.copy(path.resolve(config.srcDir, 'static'), path.resolve(config.distDir, 'static'), callback);
+// };
 
-}
+function setupDistDir (callback) {
+  // attachScript('', 'body','http://localhost:35729/livereload.js', callback, () => callback)
+  removeMainHash(callback)
+};
+
 function removeMainHash (callback) {
   return fs.readFile(path.resolve(config.distDir, 'index.html'), 'utf-8', (err, data) => {
     if (err) throw err;
     data = data.replace(/main.js[^"]+/, 'main.js');
     fs.writeFile(path.resolve(config.distDir, 'index.html'), data, err => {
       if (err) throw err;
-      console.log('Hash removed!');
+      log('Hash removed!');
       callback()
     });
   });
@@ -118,7 +118,7 @@ function buildRegex (urlParam) {
 
 function request (host, req, res, filePath, redirect) {
   if ( !host || (host === "localhost" || host === "local" || host == "127.0.0.1" )) {
-    filePath = path.resolve(config.root, filePath);
+    filePath = path.resolve(config.distDir, filePath);
     fs.exists(filePath, (exists) => {
       if (exists) {
         var stats = fs.statSync(filePath);
@@ -159,12 +159,12 @@ function request (host, req, res, filePath, redirect) {
     });
 
     req.on('error', function (e) {
-      console.log('ERROR: ' + e.message);
+      log('ERROR: ' + e.message);
     });
   }
 };
 
-function response(host, req, res, filePath, redirect) {
+function response (host, req, res, filePath, redirect) {
   if (envConfig.middleware) {
     let middleware = require( path.resolve( __dirname, 'middlewares', envConfig.middleware));
     middleware(req, res, (_req,_res) => {
@@ -172,6 +172,26 @@ function response(host, req, res, filePath, redirect) {
     });
   } else {
     request(host, req, res, filePath, redirect);
+  }
+};
+
+function setResponseContentType (req, res) {
+  MimeTypes = {
+    ".js":      "application/javascript",
+    ".html":    "text/html",
+    ".svg":     "image/svg+xml",
+    ".png":     "image/png",
+    ".jpeg":    "image/jpeg",
+    ".jpg":     "image/jpeg",
+    ".gif":     "image/gif",
+    ".json":    "application/json"
+  }
+
+  ext = path.extname(req.originalUrl)
+  if (Boolean(ext.length)) {
+    res.append('Content-Type', MimeTypes[ext] || "text/plain");
+    // res.type(MimeTypes[ext]);
+    // res.header('Content-Type', MimeTypes[ext]);
   }
 }
 
@@ -186,29 +206,37 @@ function getMongoDB () {
 function setupApp () {
   var app = express();
   app.use(bodyParser.json());
+  app.use((req, res, next) => {
+    res.append('Access-Control-Allow-Origin', ['*']);
+    res.append('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE');
+    res.append('Access-Control-Allow-Headers', 'Content-Type');
+    setResponseContentType(req, res);
+    next();
+  });
 
   app.get('/', (req, res) => {
-    res.setHeader('Content-Type','text/html');
+    // res.header('Content-Type','text/html');
+    res.type('text/html');
     response('', req, res, config.distDir + '/index.html', false);
   });
 
   app.get('/environment.js', (req, res) => {
-    res.setHeader('Content-Type','application/javascript');
+    // res.header('Content-Type','application/javascript');
     response('', req, res, config.distDir + '/environment.js', false);
   });
 
   app.get('/main.js', ( req, res ) => {
-    res.setHeader('Content-Type','application/javascript');
+    // res.header('Content-Type','application/javascript');
     response('', req, res, config.distDir + '/main.js', false );
   });
 
   // app.get('/service-worker.js', ( req, res ) => {
-  //   res.setHeader('Content-Type','text/javascript');
+  //   res.header('Content-Type','text/javascript');
   //   response( envConfig.env.host, req, res, config.distDir + '/service-worker.js', false );
   // });
 
   // app.get('/icons/:icon', ( req, res ) => {
-  //   res.setHeader('Content-Type','image/png');
+  //   res.header('Content-Type','image/png');
   //   res.sendFile( path.resolve( config.distDir, 'icons', req.params.icon ) );
   //   // response( envConfig.env.host, req, res, config.distDir + '/icons/' + req.params.icon, false );
   // });
@@ -220,7 +248,7 @@ function setupApp () {
   //       res.sendStatus(200);
   //     });
   //   } else {
-  //     console.log( req.body );
+  //     log( req.body );
   //     res.sendStatus(200);
   //   }
   // });
@@ -280,9 +308,9 @@ function main () {
         //remove hash
         //attach livereload script
         //start app
-        modifyIndexContents(() => {
+        setupDistDir(() => {
           server.listen(app.get('port'), function () {
-            console.log('Webpack watching for changes and app listening on port '+envConfig.port+'!\n');
+            log('Webpack watching for changes and app listening on port '+envConfig.port+'!\n');
             LISTENING=true;
           });
         })
@@ -290,6 +318,7 @@ function main () {
 
       compiler = webpack(config.api.get(), (err, stats) => {
         if (err) throw err;
+        log('Webpack compiled')
         startApp();
       });
     }
@@ -302,7 +331,7 @@ function main () {
 
       compiler = webpack( config.api.get(), ( err, stats ) => {
         if (err) throw err
-        console.log("Webpack build end with exit status");
+        log("Webpack build end with exit status");
       });
     }
   }
@@ -312,3 +341,8 @@ function main () {
 
 // run the application
 main();
+
+function log (msg) {
+  date = `${new Date().getHours()}:${new Date().getMinutes()}`
+  console.log(`${date} - ${msg}`);
+}
