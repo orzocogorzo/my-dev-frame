@@ -32,10 +32,11 @@ function registerEnvironment (callback) {
     console.warn("Not recognized environment declaration. Working with default config");
   };
   
-  envConfig["env"] = env = environments[envConfig["env"]] || { 
+  envConfig["env"] = env = Object.assign({ 
     name: 'development',
-    apiURL: 'rs/json'
-  };
+    apiURL: 'rs/json',
+    port: 8000
+  }, environments[envConfig["env"]]);
 
   if (!fs.existsSync(config.distDir)) {
     fs.mkdirSync(config.distDir);
@@ -61,47 +62,24 @@ function attachScript (script, place, src, callback) {
     fs.writeFile(path.resolve(config.distDir, 'index.html'), data, err => {
       if (err) throw err;
       log('Script attached on ' + place);
-      callback()
+      callback();
     });
   });
 }
-
-function setupPWA () {
-  fs.readFile(path.resolve(__dirname, '../pwa/manifest.json'), 'utf-8', (err, data) => {
-    if (err) throw err;
-    fs.writeFile(path.resolve(config.distDir, 'manifest.json'), data, function(err) {
-      if (err) throw err;
-      fs.copy(path.resolve(__dirname, '../pwa/icons'), path.resolve(config.distDir, 'icons'), err => {
-        if (err) throw err;
-        fs.readFile(path.resolve(__dirname, '../pwa/service-worker.js'), 'utf-8', (err, data) => {
-          if (err) throw err;
-          fs.writeFile(path.resolve(config.distDir, 'service-worker.js'), data, function (err) {
-            if (err) throw err;
-            log('PWA setted up!');
-          });
-        });
-      });
-    });
-  });
-}
-
-// function moveStaticsDir (callback) {
-//   fs.copy(path.resolve(config.srcDir, 'static'), path.resolve(config.distDir, 'static'), callback);
-// };
 
 function setupDistDir (callback) {
-  // attachScript('', 'body','http://localhost:35729/livereload.js', callback, () => callback)
-  removeMainHash(callback)
+  removeMainHash(callback);
 };
 
 function removeMainHash (callback) {
   return fs.readFile(path.resolve(config.distDir, 'index.html'), 'utf-8', (err, data) => {
     if (err) throw err;
-    data = data.replace(/main.js[^"]+/, 'main.js');
+    data = data.replace(/main.js[^"]+/, `main.js`);
+    //data = data.replace(/environment.js/, `http://${envConfig.env.host}${envConfig.env.port  || envConfig.port ? ':' + (envConfig.env.port  || envConfig.port) : ''}/environment.js`);
     fs.writeFile(path.resolve(config.distDir, 'index.html'), data, err => {
       if (err) throw err;
       log('Hash removed!');
-      callback()
+      callback && callback()
     });
   });
 }
@@ -143,9 +121,13 @@ function request (host, req, res, filePath, redirect) {
 
         }
       };
-      if (req.headers["accept"].indexOf("image") >= 0) {
-          res.sendFile(filePath);
+      if (req.headers["accept"].indexOf("image") >= 0 || Array.isArray(/(jpg|jpeg|png|gif|tiff|tif|svg)/.exec(req.url))) {
+        res.sendFile(filePath);
       } else {
+        fs.readFile(filePath, 'utf-8', (err, data) => {
+          res.send(data);
+        });
+      }
         fs.readFile(filePath, 'utf-8', (err, data) => {
           res.send(data);
         });
@@ -192,20 +174,10 @@ function setResponseContentType (req, res) {
     ".json":    "application/json"
   }
 
-  ext = path.extname(req.originalUrl)
+  ext = path.extname(req.originalUrl);
   if (Boolean(ext.length)) {
     res.append('Content-Type', MimeTypes[ext] || "text/plain");
-    // res.type(MimeTypes[ext]);
-    // res.header('Content-Type', MimeTypes[ext]);
   }
-}
-
-function getMongoDB () {
-  var URI = process.env.MONGODB_URI; 
-  MongoClient.connect(URI, function(err, db) {
-    if (err) throw err;
-    database = db.db("heroku_k9l4gvz8");
-  });
 }
 
 function setupApp () {
@@ -220,51 +192,26 @@ function setupApp () {
   });
 
   app.get('/', (req, res) => {
-    // res.header('Content-Type','text/html');
     res.type('text/html');
     response('', req, res, config.distDir + '/index.html', false);
   });
 
-  app.get('/environment.js', (req, res) => {
-    // res.header('Content-Type','application/javascript');
+  app.get('(*)?/environment.js', (req, res) => {
     response('', req, res, config.distDir + '/environment.js', false);
   });
 
-  app.get('/main.js', ( req, res ) => {
-    // res.header('Content-Type','application/javascript');
+  app.get('(*)?/main.js', ( req, res ) => {
     response('', req, res, config.distDir + '/main.js', false );
   });
-
-  // app.get('/service-worker.js', ( req, res ) => {
-  //   res.header('Content-Type','text/javascript');
-  //   response( envConfig.env.host, req, res, config.distDir + '/service-worker.js', false );
-  // });
-
-  // app.get('/icons/:icon', ( req, res ) => {
-  //   res.header('Content-Type','image/png');
-  //   res.sendFile( path.resolve( config.distDir, 'icons', req.params.icon ) );
-  //   // response( envConfig.env.host, req, res, config.distDir + '/icons/' + req.params.icon, false );
-  // });
-
-  // app.post('/bulk', ( req, res ) => {
-  //   if ( database ) {
-  //     database.collection('responses').insertOne( req.body, function( err, source ) {
-  //       if ( err ) throw err;
-  //       res.sendStatus(200);
-  //     });
-  //   } else {
-  //     log( req.body );
-  //     res.sendStatus(200);
-  //   }
-  // });
   
   app.get(buildRegex(), (req, res) => {
     var redirectPath = req.params[0].replace(new RegExp(`\/${envConfig.env.basehref}\/`),'');
-    if (!envConfig.env.host || (envConfig.env.host != "localhost" && envConfig.env.host != "local")) {
+    if (!envConfig.env.host || envConfig.env.host === "localhost" || envConfig.env.host === "local") {
+      // LOCAL HOST API
+      if (!envConfig.env.host) envConfig.env.host = "localhost";
       if (redirectPath.indexOf(envConfig.env.apiURL) >= 0) {
-        // Local API ROUTE
-        redirectPath = redirectPath.replace(new RegExp(`\/${envConfig.env.apiURL}\/`),'');
-        response(envConfig.env.host, req, res, config.dataDir + '/' + redirectPath, false);
+        redirectPath = config.dataDir + redirectPath.split(envConfig.env.apiURL)[1];
+        response(envConfig.env.host, req, res, redirectPath, false);
       } else {
         response(envConfig.env.host, req, res, config.distDir + redirectPath, !Boolean(redirectPath) || redirectPath === '/');
       }
@@ -323,6 +270,7 @@ function main () {
 
       compiler = webpack(config.api.get(), (err, stats) => {
         if (err) throw err;
+        removeMainHash();
         log('Webpack compiled')
         startApp();
       });
@@ -336,6 +284,7 @@ function main () {
 
       compiler = webpack( config.api.get(), ( err, stats ) => {
         if (err) throw err
+        removeMainHash();
         log("Webpack build end with exit status");
       });
     }
