@@ -6,7 +6,7 @@
       <div class="welcome-section-subtitle" v-html="welcomeSubTitle"></div>
       <p
         class="welcome-section-description"
-      >{{lng("enter-your-order-number-to-find-out-the-status-of-your-order")}}</p>
+      >{{lng("welcome-section-description")}}</p>
     </div>
   </div>
 </template>
@@ -27,14 +27,12 @@ export default {
 .welcome-section
   align-items: center
   display: flex
-  // padding-top: 100px
   position: relative
 
   +m-breakpoint(sm xmd)
     align-items: flex-end
 
 .welcome-section-logo
-  background-image: url("../../../static/images/logo.png")
   background-position: center
   background-repeat: no-repeat
   background-size: contain
@@ -48,7 +46,6 @@ export default {
     height: 50px
     width: @height
 
-// .welcome-section-content
 .welcome-section-title
   font-weight: $fw-bold
   m-font-size(61, 73)
@@ -80,7 +77,6 @@ export default {
     font-size: 3vw
 
 .welcome-section-description
-  font-family: "Seat Bcn Book"
   m-font-size(26, 38)
   font-size: 4vw
   line-height: 1.2

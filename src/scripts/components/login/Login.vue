@@ -15,7 +15,7 @@
 <script>
 import LoginSection from "./LoginSection.vue";
 import WelcomeSection from "./WelcomeSection.vue";
-import CookiesPanel from "../../components/CookiesPanel.vue";
+import CookiesPanel from "../CookiesPanel.vue";
 
 export default {
   name: "Login",
@@ -44,7 +44,6 @@ export default {
 .view-wrapper
   display: flex
   height: 100%
-  // min-height: 600px
   width: 100%
 
   +m-breakpoint(sm xmd)

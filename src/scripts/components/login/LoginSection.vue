@@ -34,26 +34,10 @@
         </div>
       </div>
     </div>
-    <div class="privacy-policy-text">
-      <p><b>{{lng("login-policy-title-1")}}</b> {{lng("login-policy-text-1")}}</p>
-      <p><b>{{lng("login-policy-title-2")}}</b> {{lng("login-policy-text-2a")}}</p>
-      <p>{{lng("login-policy-text-2b")}}</p>
-      <p><b>{{lng("login-policy-title-3")}}</b> {{lng("login-policy-text-3")}}</p>
-      <p><b>{{lng("login-policy-title-4")}}</b> {{lng("login-policy-text-4")}}</p>
-      <p><b>{{lng("login-policy-title-5")}}</b> {{lng("login-policy-text-5")}}</p>
-    </div>
-    <div class="floating-advertisment">
-      {{lng("problem-with-order")}}
-      <span class="contact-us" @click="contactUs">{{lng("contact-us")}}</span>
-    </div>
-    <div class="advisments-wrapper">
-      <advisments :collapsable="false" :visible="true"/>
-    </div>
   </div>
 </template>
 
 <script>
-import Advisments from '../../components/Advisments.vue';
 
 export default {
   name: "LoginSection",
@@ -67,8 +51,8 @@ export default {
     };
   },
   beforeMount () {
-    if (document.cookie.match(/fastlane_tracking_last_logged=([^;]+)/)) {
-      this.code = document.cookie.match(/fastlane_tracking_last_logged=([^;]+)/)[1];
+    if (document.cookie.match(/user_credentials=([^;]+)/)) {
+      this.code = document.cookie.match(/user_credentials=([^;]+)/)[1];
     }
   },
   methods: {
@@ -79,9 +63,6 @@ export default {
         this.error[input] = false;
         this.errorMessage = void 0;
       }
-    },
-    contactUs () {
-      location.href = "mailto:O2D4.0@seat.es?subject=[SEAT FL Tracking] Support";
     },
     tryItAgain () {
       this.error.code = false;
@@ -100,17 +81,14 @@ export default {
     },
     requestStatus () {
       return this.$store
-        .dispatch("trackline/status", { trackingId: this.code })
-        .then(trackingStatus => {
-          if (!isNaN(trackingStatus) && trackingStatus >= 300) {
+        .dispatch("users/login", {userCredentials: this.code })
+        .then(status => {
+          if (!status.success) {
             this.error.code = true;
             this.error.errorMessage = this.lng("login-code-not-found");
-          } else if (trackingStatus === 'pending') {
-            this.error.code = true;
-            this.error.errorMessage = this.lng("login-code-pending");
           } else {
             this.error.code = false;
-            this.error.errorMessage = void 0;
+            this.error.errorMessage = void(0);
           }
           return !this.error.code;
         }).catch(err => {
@@ -122,13 +100,10 @@ export default {
       });
     },
     login () {
-      document.cookie = `fastlane_tracking_last_logged=${this.code};max-age=2592000`;
-      document.cookie = "fastlane_tracking_logged=true;max-age=1800";
+      document.cookie = `user_credentials=${this.code};max-age=2592000`;
+      document.cookie = "user_session=true;max-age=1800";
       this.$emit("logged");
     }
-  },
-  components: {
-    Advisments
   }
 };
 </script>
@@ -162,7 +137,6 @@ export default {
 
   .contact-us
     display: inline-block
-    font-family: "Seat Bcn Book"
     m-font-size(14, 18)
     m-link($primary-theme-color, $primary-theme-color)
     margin-left: 0.5em
@@ -182,7 +156,6 @@ export default {
     transform: none
 
 .login-section-label
-  font-family: "Seat Bcn Book"
   m-font-size(16, 20)
   margin-bottom: 0.5em
 
@@ -213,7 +186,6 @@ export default {
   background: none
   border: none
   color: $zorba
-  font-family: "Seat Bcn Book"
   m-font-size(32)
   width: 100%
 

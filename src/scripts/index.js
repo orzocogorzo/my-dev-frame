@@ -1,7 +1,7 @@
 import Vue from 'vue';
 
 import App from './App.vue';
-import Login from './views/login/Login.vue';
+import Login from './components/login/Login.vue';
 import EventBus from './bus/EventBus.js';
 
 import store from './store/index.js';

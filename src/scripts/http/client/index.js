@@ -1,4 +1,4 @@
-export function HttpClient (Class) {
+export default function HttpClient (Class) {
 
   function gen () {
     const xmlR = new XMLHttpRequest();
@@ -112,16 +112,16 @@ export function HttpClient (Class) {
     this._showProgress = true;
   }
 
-  const public = {
+  const shared = {
     get: this.get,
     post: this.post
   };
 
   function bind (Class) {
-    Class.prototype.$http = public;
+    Class.prototype.$http = shared;
   }
 
-  public.bind = bind;
-  window.http = window.http || public;
+  shared.bind = bind;
+  window.http = window.http || shared;
   return window.http;
 }
