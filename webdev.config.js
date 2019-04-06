@@ -11,15 +11,15 @@ const config = {
   staticDir: {
     path: path.resolve(__dirname, 'src/static'),
     copy: true,
-    exclude: ["images"]
+    exclude: ["images","svg","fonts","media"]
   },
   pwa: {
     path: path.resolve(__dirname, 'src/pwa'),
-    enabled: true
+    enabled: false
   },
   entry: {
     main: ['@babel/polyfill', path.resolve(__dirname, "src/index.js")],
-    pwa: path.resolve(__dirname, "src/pwa/sw.js")
+    // pwa: path.resolve(__dirname, "src/pwa/sw.js")
   },
   output: {
       path: path.resolve(__dirname, 'dist'),
