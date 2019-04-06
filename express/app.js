@@ -8,6 +8,7 @@ const envConfig = new Object();
 
 const http = require('http');
 const express = require('express');
+const webpush = require('web-push');
 
 function setupConfig(){
   config.api.set('output',config.output);
@@ -34,7 +35,7 @@ function registerEnvironment (callback) {
   
   envConfig["env"] = env = Object.assign({ 
     name: 'development',
-    apiURL: 'rs/json',
+    apiURL: 'rs',
     port: 8000
   }, environments[envConfig["env"]]);
 
@@ -53,11 +54,25 @@ function registerEnvironment (callback) {
   });
 }
 
-function attachScript (script, place, src, callback) {
-  place = place == "head" || place == "body" ? place : "head"; 
+function attachLink (params, callback) {
+  place = params.place == "head" || params.place == "body" ? params.place : "head"; 
   fs.readFile(path.resolve(config.distDir, 'index.html'), 'utf-8', (err, data) => {
     if (err) throw err;
-    scriptTag = `<script src="${src}" type="application/javascript">${script}</script>`;
+    linkTag = `<link ${params.type && 'type="'+params.type+'"' || ''} ${params.href && 'href="'+params.href+'"' || ''} ${params.rel && 'rel="'+params.rel+'"' || ''} />`;
+    data = data.replace(RegExp(`<!-- {{${place}}} -->`,'g'), `<!-- {{${place}}} -->\n ${linkTag}`);
+    fs.writeFile(path.resolve(config.distDir, 'index.html'), data, err => {
+      if (err) throw err;
+      log('Link attached on ' + place);
+      callback();
+    });
+  });
+}
+
+function attachScript (params, callback) {
+  place = params.place == "head" || params.place == "body" ? params.place : "head"; 
+  fs.readFile(path.resolve(config.distDir, 'index.html'), 'utf-8', (err, data) => {
+    if (err) throw err;
+    scriptTag = `<script ${params.type && 'type="'+params.type+'"' || ''} ${params.src && 'src="'+params.src+'"' || ''} ${params.rel && 'rel="'+params.rel+'"' || ''}>${params.script && params.script || ''}</script>`;
     data = data.replace(RegExp(`<!-- {{${place}}} -->`,'g'), `<!-- {{${place}}} -->\n${scriptTag}`);
     fs.writeFile(path.resolve(config.distDir, 'index.html'), data, err => {
       if (err) throw err;
@@ -68,14 +83,60 @@ function attachScript (script, place, src, callback) {
 }
 
 function setupDistDir (callback) {
-  removeMainHash(callback);
+  callback = callback || function () {};
+  copyStaticDir(() => removeMainHash(callback));
+};
+
+function copyStaticDir (callback) {
+  if (config.staticDir.copy) {
+    let targetDir = path.resolve(config.distDir, envConfig.env.staticURL);
+    fs.copy(config.staticDir.path, targetDir, (err, data) => {
+      if (err) throw err;
+      Promise.all(config.staticDir.exclude && config.staticDir.exclude.map(d => {
+        return fs.remove(path.resolve(targetDir, d), (err) => {
+          if (err) throw err;
+        });
+      })).then(_ => {
+        log('Static directory copied into dist folder');
+        callback();
+      });
+    });
+    return;
+  }
+  callback();
+};
+
+function setupPWA (callback) {
+  if (config.pwa.enabled === true) {
+    const files = fs.readdirSync( config.pwa.path );
+    const len = files.length-1;
+    var counter = 0;
+    files.forEach(function (file) {
+        let sourceFile = path.join(config.pwa.path, file);
+        fs.copy(sourceFile, path.resolve(config.distDir, file), (err, data) => {
+          if (err) throw err;
+          counter++;
+          if (counter === len) {
+            attachLink({
+              place: 'head',
+              rel: "manifest",
+              href: 'manifest.json'
+            }, () => {
+              log('PWA setted up');
+              callback && callback();
+            });
+          }
+        });
+    });
+  } else {
+    callback && callback();
+  }
 };
 
 function removeMainHash (callback) {
   return fs.readFile(path.resolve(config.distDir, 'index.html'), 'utf-8', (err, data) => {
     if (err) throw err;
     data = data.replace(/main.js[^"]+/, `main.js`);
-    //data = data.replace(/environment.js/, `http://${envConfig.env.host}${envConfig.env.port  || envConfig.port ? ':' + (envConfig.env.port  || envConfig.port) : ''}/environment.js`);
     fs.writeFile(path.resolve(config.distDir, 'index.html'), data, err => {
       if (err) throw err;
       log('Hash removed!');
@@ -85,49 +146,36 @@ function removeMainHash (callback) {
 }
 
 function buildRegex (urlParam) {
-  let basehref = envConfig.basehref || envConfig.env.basehref || null
+  // let basehref = envConfig.basehref || envConfig.env.basehref || null
   if ( urlParam ){
-    return new RegExp("^\/" + (basehref && (basehref + "/" + urlParam)
-      || urlParam) + "\/(.*)");
+    return new RegExp("^\/" + urlParam + "\/(.*)");
   } else {
-    return new RegExp("^" + (basehref && ("\/" + basehref) || '') + "(.*)");
+    return new RegExp("^" + "(.*)");
   }
 };
 
-function request (host, req, res, filePath, redirect) {
+function request (host, req, res, filePath) {
   if ( !host || (host === "localhost" || host === "local" || host == "127.0.0.1" )) {
     filePath = path.resolve(config.distDir, filePath);
     fs.exists(filePath, (exists) => {
       if (exists) {
         var stats = fs.statSync(filePath);
         if (!stats.isFile()) {
-          if (redirect) {
-            filePath = path.resolve(config.root, config.distDir, 'index.html');
-          } else {
-            res.sendStatus(404);
-            return;
-          }
+          res.sendStatus(404);
+          return;
         };
       } else {
-        if (redirect) {
+        if (req.headers["accept"] && req.headers["accept"].indexOf('text/html') >= 0) {
           filePath = path.resolve(config.root, config.distDir, 'index.html');
         } else {
-          if (req.headers["accept"].indexOf('text/html') >= 0) {
-            filePath = path.resolve(config.root, config.distDir, 'index.html');
-          } else {
-            res.sendStatus(404);
-            return;
-          };
-
+          res.sendStatus(404);
+          return;
         }
-      };
-      if (req.headers["accept"].indexOf("image") >= 0 || Array.isArray(/(jpg|jpeg|png|gif|tiff|tif|svg)/.exec(req.url))) {
-        res.sendFile(filePath);
-      } else {
-        fs.readFile(filePath, 'utf-8', (err, data) => {
-          res.send(data);
-        });
       }
+
+      if ((req.headers["accept"] && req.headers["accept"].indexOf("image") >= 0) || reqFile(req.url)) {
+          res.sendFile(filePath);
+      } else {
         fs.readFile(filePath, 'utf-8', (err, data) => {
           res.send(data);
         });
@@ -151,14 +199,14 @@ function request (host, req, res, filePath, redirect) {
   }
 };
 
-function response (host, req, res, filePath, redirect) {
+function response (host, req, res, filePath) {
   if (envConfig.middleware) {
     let middleware = require( path.resolve( __dirname, 'middlewares', envConfig.middleware));
     middleware(req, res, (_req,_res) => {
-      request(host, _req, _res, filePath, redirect);
+      request(host, _req, _res, filePath);
     });
   } else {
-    request(host, req, res, filePath, redirect);
+    request(host, req, res, filePath);
   }
 };
 
@@ -171,7 +219,9 @@ function setResponseContentType (req, res) {
     ".jpeg":    "image/jpeg",
     ".jpg":     "image/jpeg",
     ".gif":     "image/gif",
-    ".json":    "application/json"
+    ".json":    "application/json",
+    ".mp4":     "video/mp4",
+    ".css":     "text/css"
   }
 
   ext = path.extname(req.originalUrl);
@@ -203,24 +253,90 @@ function setupApp () {
   app.get('(*)?/main.js', ( req, res ) => {
     response('', req, res, config.distDir + '/main.js', false );
   });
+
+  app.post('/push-notification', function(req, res) {
+    const subscription = req.body.subscription;
+    const message = req.body.message;
+    const vapid = require('../src/pwa/vapid.json');
+
+    setInterval(() => {
+      const options = {
+        TTL: 24 * 60 * 60,
+        vapidDetails: {
+          subject: 'mailto:lucas@bestiario.com',
+          publicKey: vapid.publicKey,
+          privateKey: vapid.privateKey
+        },
+      }
+
+      log('\nwebpush.sendNotification\n')
+      webpush.sendNotification(
+        subscription,
+        JSON.stringify({
+          message: message,
+          title: "PUSH NOTIFICATION",
+          icon: "2277f940a875f864ccf7280bd9c712b3.png",
+          "tag": "simple-push-demo-notification-tag"
+        }),
+        options
+      ).catch(err => {
+        console.log('push sent went wrong');
+      });
+
+    }, 60000);
+  
+    res.send('{"success": true}');
+  });
   
   app.get(buildRegex(), (req, res) => {
-    var redirectPath = req.params[0].replace(new RegExp(`\/${envConfig.env.basehref}\/`),'');
+    var filePath = req.params[0]; //.replace(new RegExp(`\/${envConfig.env.basehref}\/`),'');
     if (!envConfig.env.host || envConfig.env.host === "localhost" || envConfig.env.host === "local") {
       // LOCAL HOST API
-      if (!envConfig.env.host) envConfig.env.host = "localhost";
-      if (redirectPath.indexOf(envConfig.env.apiURL) >= 0) {
-        redirectPath = config.dataDir + redirectPath.split(envConfig.env.apiURL)[1];
-        response(envConfig.env.host, req, res, redirectPath, false);
-      } else {
-        response(envConfig.env.host, req, res, config.distDir + redirectPath, !Boolean(redirectPath) || redirectPath === '/');
+      envConfig.env.host = envConfig.env.host || "localhost";
+      
+      if (filePath.indexOf(envConfig.env.apiURL) >= 0) {
+        filePath = config.dataDir + '/' + filePath.split(envConfig.env.apiURL)[1];
+        response(envConfig.env.host, req, res, filePath, false);
+        return;
+      } 
+      // } else if (filePath.indexOf(envConfig.env.staticURL) >= 0) {
+      //   filePath = config.staticDir.path + '/' + filePath.split(envConfig.env.staticURL)[1];
+      //   response(envConfig.env.host, req, res, filePath, false);
+      // }
+      else {
+        filePath = path.resolve(config.distDir, filePath.replace(/^\//,''));
+        response(envConfig.env.host, req, res, filePath);
+        return;
       }
     } else {
-      response(envConfig.env.host, req, res, redirectPath, !Boolean(redirectPath) || redirectPath === '/');
+      response(envConfig.env.host, req, res, filePath);
     }
   });
 
-  app.set('port', envConfig.port);
+  app.post(buildRegex(), (req, res) => {
+    var filePath = req.params[0]; //.replace(new RegExp(`\/${envConfig.env.basehref}\/`),'');
+    if (!envConfig.env.host || envConfig.env.host === "localhost" || envConfig.env.host === "local") {
+      // LOCAL HOST API
+      envConfig.env.host = envConfig.env.host || "localhost";
+      if (filePath.indexOf(envConfig.env.apiURL) >= 0) {
+        filePath = config.dataDir + '/' + filePath.split(envConfig.env.apiURL)[1];
+        response(envConfig.env.host, req, res, filePath, false);
+      }
+      // } else if (filePath.indexOf(envConfig.env.staticURL) >= 0) {
+      //   filePath = config.staticDir.path + '/' + filePath.split(envConfig.env.staticURL)[1];
+      //   console.log(filePath);
+      //   response(envConfig.env.host, req, res, filePath, false);
+      // }
+      else {
+        filePath = path.resolve(config.distDir, filePath.replace(/^\//,''));
+        response(envConfig.env.host, req, res, filePath);
+      }
+    } else {
+      response(envConfig.env.host, req, res, filePath);
+    }
+  });
+
+  app.set('port', envConfig.env.port);
 
   return app;
 ;}
@@ -239,8 +355,8 @@ function main () {
       console.warn("Unrecognized target action. Fired development mode by default");
     };
 
-    if (!envConfig.port) {
-      envConfig.port = 8000;
+    if (!envConfig.env.port) {
+      envConfig.env.port = 8000;
       console.warn("Port not declared, set port 8000 by default")
     }
 
@@ -254,15 +370,14 @@ function main () {
 
       function startApp () {
         if (LISTENING) return;
-        // Serve the files on port 8000.
+        // Setup the development server.
         server = http.createServer(app);
 
-        //remove hash
-        //attach livereload script
+        //setup dist directory
         //start app
         setupDistDir(() => {
           server.listen(app.get('port'), function () {
-            log('Webpack watching for changes and app listening on port '+envConfig.port+'!\n');
+            log('Webpack watching for changes and app listening on port '+envConfig.env.port+'!\n');
             LISTENING=true;
           });
         })
@@ -271,20 +386,20 @@ function main () {
       compiler = webpack(config.api.get(), (err, stats) => {
         if (err) throw err;
         removeMainHash();
-        log('Webpack compiled')
-        startApp();
+        log('Webpack compiled');
+        setupPWA(() => startApp());
       });
     }
   } else if (envConfig["build"]){
-    function callback(){
+    function callback () {
       
       config.api.set("mode", envConfig["prod"] && "production" || "development");
 
       setupConfig();
 
-      compiler = webpack( config.api.get(), ( err, stats ) => {
+      compiler = webpack(config.api.get(), ( err, stats ) => {
         if (err) throw err
-        removeMainHash();
+        setupDistDir(setupPWA);
         log("Webpack build end with exit status");
       });
     }
@@ -299,4 +414,8 @@ main();
 function log (msg) {
   date = `${new Date().getHours()}:${new Date().getMinutes()}`
   console.log(`${date} - ${msg}`);
+}
+
+function reqFile (url) {
+  return url && Array.isArray(/(jp(e)?g|png|gif|ti(f)+|svg|mp[3-4]|avi|mov|woff(2)?|ttf|eot)/.exec(url)) || false;
 }

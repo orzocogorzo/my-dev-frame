@@ -5,23 +5,43 @@ const config = {
     rules: [
       { 
         test: /\.(styl|css)$/, 
-        use: ['style-loader','css-loader','stylus-loader'] 
+        use: ['style-loader','css-loader','postcss-loader','stylus-loader'] 
       },
       {
         test: /\.vue$/,
         use: 'vue-loader'
       },
       {
-        test: /\.(png|jpg|gif|svg|woff(2)?|ttf|eot)$/,
+        test: /\.(png|jpg|gif|svg|tif+)$/,
         use: {
           loader: 'url-loader',
           options: {
-            limit: 8192
+            limit: 8192,
+            name: 'images/[name].[ext]'
           }
         }
       },
       {
-        test: /\.js$/,
+        test: /\.(mp4|avi|mov|mp3)$/,
+        use: {
+          loader: 'url-loader',
+          options: {
+            limit: 8192,
+            name: 'media/[name].[ext]'
+          }
+        }
+      },
+      {
+        test: /\.(woff(2)?|ttf|eot)(\?v=\d+\.\d+\.\d+)?$/,
+        use: {
+          loader: 'url-loader',
+          options: {
+            name: 'fonts/[name].[ext]'
+          }
+        }
+      },
+      {
+        test: /\.m?js$/,
         exclude: /(node_modules|bower_components)/,
         use: {
           loader: 'babel-loader',

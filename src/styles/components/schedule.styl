@@ -1,0 +1,105 @@
+.schedule__wrapper
+    border: 1px solid $dove-gray
+    margin: 0 auto
+
+    .schedule__title
+        align-items: center
+        border-bottom: 1px solid $dove-gray
+        display: flex
+        padding: 10px
+
+        .schedule__current-month
+            align-items: center
+            display: flex
+            flex: 1 1 auto
+            font-family: "Seat Bcn Book"
+            justify-content: center
+            m-font-size(12, 14)
+            text-align: center
+
+        .schedule__month-navigator
+            border: 1px solid $dove-gray
+            border-radius: 50%
+            color: $dove-gray
+            cursor: pointer
+            height: 30px
+            padding: 5px
+            position: relative
+            text-align: center
+            width: @height
+
+            &:hover
+                background-color: $dove-gray
+
+                &.prev,
+                &.next
+                    &:before
+                        border-color: #fff
+
+            &.prev
+                m-chevron("left", 8, 2, $dove-gray)
+
+            &.next
+                m-chevron("right", 8, 2, $dove-gray)
+
+            &.prev,
+            &.next
+                &:before
+                    top: calc(50% - 1px)
+
+    .schedule__body
+        padding: 15px 0
+
+        .schedule__days-labels
+            display: flex
+            justify-content: center
+
+            .schedule__day-label
+                font-weight: $fw-medium
+                m-font-size(10, 12)
+                height: 15px
+                margin: 5px
+                text-align: center
+                text-transform: uppercase
+                width: @height * 2
+
+        .schedule__days-grid
+            .schedule__week-row
+                display: flex
+                justify-content: center
+
+                .schedule__day-cell
+                    align-items: center
+                    cursor: pointer
+                    display: flex
+                    font-family: "Seat Bcn Book"
+                    height: 40px
+                    justify-content: center
+                    m-font-size(10, 12)
+                    margin: 5px
+                    width: @height
+
+                    +m-breakpoint(sm xmd)
+                        height: 30px
+                        width: @height
+
+                    &:hover
+                        color: $primary-theme-color
+
+                    &.limit-date
+                      border-color: $primary-theme-color
+                      border-width: 1px
+                      border-style: dashed
+                      background-color: none 
+                      color: black
+                      border-radius: 50%
+                      
+                    &.selected
+                        background-color: $primary-theme-color
+                        border-radius: 50%
+                        color: #fff
+
+                    &.outter
+                        cursor: pointer default
+                        opacity: 0.5
+                        pointer-events: none

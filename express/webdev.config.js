@@ -7,6 +7,10 @@ const config = Object.assign({
 	distDir: 'dist',
   srcDir: 'src',
   dataDir:'src/data',
+  staticDir: {
+    path: 'src/static',
+    copy: false
+  },
   entry: "src/index.js",
   output: {
     path: path.resolve(__dirname, 'dist'),

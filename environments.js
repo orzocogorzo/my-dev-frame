@@ -1,11 +1,21 @@
 module.exports = {
   dev: {
+    host: 'localhost',
     name: 'development',
-    apiURL: 'rs'
+    apiURL: 'rest',
+    staticURL: 'static/',
+    port: 9000
   },
-  pi: {
-    name: 'raspberry',
-    apiURL: 'rs/json',
-    host: "http://www.orzopi.tk"
+  "dev:remote": {
+    name: 'remotehost',
+    apiURL: '{{protocol}}://{{host}}/rs/tracking/',
+    host: "{{protocol}}://{{host}}/tracking/",
+    staticURL: 'static/'
+  },
+  pro: {
+    name: 'production',
+    apiURL: './rest',
+    host: "{{domain}}",
+    staticURL: 'static/'
   }
 }

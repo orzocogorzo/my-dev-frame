@@ -1,0 +1,96 @@
+button,
+.button,
+.btn
+    background-color: #444
+    border: none
+    border-radius: 4px
+    color: #fff
+    cursor: pointer
+    display: inline-block
+    font-family: $base-font-family
+    font-weight: $fw-bold
+    m-font-size(12, 18)
+    m-letter-spacing(20)
+    padding: 0.8em 3em 1em
+    text-align: center
+    text-transform: uppercase
+    vertical-align: middle
+
+    &:hover
+        color: #fff
+
+    &:active
+        outline: none
+
+    &.is-disabled,
+    &[disabled]
+        cursor: not-allowed
+        opacity: 0.5
+        pointer-events: none
+        position: relative
+
+        &:after
+            content: ""
+            height: 100%
+            left: 0
+            position: absolute
+            top: 0
+            width: 100%
+            z-index: 1
+
+    & + &
+        margin-left: 10px
+
+a
+    &.btn
+        color: #fff
+        text-decoration: none
+
+        &:hover
+            text-decoration: none
+
+for $b in $buttons
+    .btn--{$b[0]}
+        background-color: $b[1]
+
+        if ($b[0] == "secondary")
+            color: $primary-theme-color
+
+        &:hover
+            background-color: darken($b[1], 5%)
+
+            if ($b[0] == "secondary")
+                color: $primary-theme-color
+
+        &:active
+            background-color: darken($b[1], 10%)
+
+            if ($b[0] == "secondary")
+                color: $primary-theme-color
+
+        &.btn--ghost
+            background-color: transparent
+            border: 1px solid $b[1]
+            color: $b[1]
+
+            &:hover
+                border-color: darken($b[1], 5%)
+                color: darken($b[1], 5%)
+
+            &:active
+                border-color: darken($b[1], 10%)
+                color: darken($b[1], 10%)
+
+.btn-icon
+    display: inline-block
+    height: 1.2em
+    margin-right: 0.2em
+    margin-top: -0.2em
+    vertical-align: middle
+
+.btn-group
+    display: flex
+
+    > .btn
+        &:not(:last-child)
+            margin-right: 10px

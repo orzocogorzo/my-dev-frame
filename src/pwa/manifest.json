@@ -1,0 +1,18 @@
+{  
+  "name": "Fast Lane",  
+  "short_name": "Fast Lane",
+  "description": "SEAT FastLane application to track car orders status over the time",
+  "icons": [{  
+        "src": "logo-manifest.png",  
+        "sizes": "192x192",
+        "type": "image/png"
+      }],  
+  "start_url": "/index.html",
+  "display": "standalone",
+  "background_color": "#EA5D1A",
+  "permissions": {
+    "desktop-notification": {
+      "description": "Needed for creating system notifications."
+    }
+  }
+}
