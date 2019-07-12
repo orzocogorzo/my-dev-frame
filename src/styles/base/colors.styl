@@ -17,18 +17,71 @@ $cararra = #F3F2EF
 $desert-storm = #fafaf9
 $dove-gray = #707070
 $dune = #33302E
+$mine-shaft = #212121
+$shark = #1D1D1F
+$cod-gray = #0A0A0A
 $natural-gray = #8A8785
 $pampas = #F7F6F4
 $sandstone = #79706a
 $tango = #EA5D1A
-$westar = #DEDAD4 // worm grey
+$rhino = #283C5C
+$big-stone = #152031
+$viking = #6ad0d9
+$westar = #DEDAD4
 $zorba = #9F948E
+$caribbean-green = #5FE0B7
 
-$base-font-color = #000
+$base-font-color = #ffffff
 
-$primary-btn-color = $tango
+$primary-btn-color = $caribbean-green
 $secondary-btn-color = #fff
 
-$primary-theme-color = $tango
+$primary-theme-color = $caribbean-green
+$secondary-theme-color = $big-stone
 
 $link-color = $tango
+
+$theme-colors = {
+  "st-james-primary": $dune,
+  "st-james-secondary": $cod-gray,
+  "st-james-tertiary": $mine-shaft,
+  "st-james-highlight": $caribbean-green,
+  "primary": $rhino,
+  "secondary": $big-stone,
+  "tertiary": $mine-shaft,
+  "highlight": $viking
+}
+
+$font-colors = {
+  "st-james-primary": $desert-storm,
+  "st-james-secondary": $dune,
+  "st-james-highlight": $caribbean-green,
+  "primary": $desert-storm,
+  "secondary": $dune,
+  "highlight": $viking
+}
+
+$btn-colors = {
+  "st-james-primary": $caribbean-green,
+  "st-james-secondary": $desert-storm,
+  "primary": $rhino,
+  "secondary": $desert-storm
+}
+
+f-theme-colors(color)
+  unless color in $colors
+    warn(color + " color isn't defined in $theme-colors")
+
+  return $colors[color]
+
+f-font-colors(color)
+  unless color in $colors
+    warn(color + " color isn't defined in $font-colors")
+
+  return $font-colors[color]
+
+f-btn-colors(color)
+  unless color in $colors
+    warn(color + "color isn't defined in $btn-colors")
+
+  return $btn-colors[color]

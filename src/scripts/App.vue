@@ -51,21 +51,5 @@ export default {
       top $header-height
       width 100%
       max-width unset
-
-.root-landscape-disclaimer
-  align-items: center
-  background-color: #000
-  color: #fff
-  display: none
-  height: 100%
-  justify-content: center
-  left: 0
-  position: fixed
-  text-align: center
-  top: 0
-  width: 100%
-  z-index: 1502
-
-  +m-breakpoint(sm xmd)
-    display: flex
+      
 </style>
