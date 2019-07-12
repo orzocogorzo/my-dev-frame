@@ -10,7 +10,7 @@ const http = require('http');
 const express = require('express');
 const webpush = require('web-push');
 
-function setupConfig(){
+function setupConfig () {
   config.api.set('output',config.output);
   config.api.set('entry',config.entry);
   config.api.set('module.rules', config.module.rules);
@@ -18,11 +18,11 @@ function setupConfig(){
   config.api.set('resolve', config.resolve);
 };
 
-var LISTENING=false;
+var LISTENING = false;
 
-function flagMatcher(flag){
-  let name,val;
-  [name,val] = flag.split('=');
+function flagMatcher (flag) {
+  var name, val;
+  [name, val] = flag.split('=');
   envConfig[name.replace(/\-+/,'')] = val || true;
 }
 
@@ -35,8 +35,10 @@ function registerEnvironment (callback) {
   
   envConfig["env"] = env = Object.assign({ 
     name: 'development',
-    apiURL: 'rs',
-    port: 8000
+    apiURL: 'statics/data/',
+    userURL: 'statics/user/',
+    staticURL: 'statics/',
+    port: 8050
   }, environments[envConfig["env"]]);
 
   if (!fs.existsSync(config.distDir)) {
@@ -88,11 +90,11 @@ function setupDistDir (callback) {
 };
 
 function copyStaticDir (callback) {
-  if (config.staticDir.copy) {
-    let targetDir = path.resolve(config.distDir, envConfig.env.staticURL);
-    fs.copy(config.staticDir.path, targetDir, (err, data) => {
+  if (config.statics.copy) {
+    let targetDir = path.resolve(config.distDir, config.statics.dist);
+    fs.copy(config.statics.path, targetDir, (err, data) => {
       if (err) throw err;
-      Promise.all(config.staticDir.exclude && config.staticDir.exclude.map(d => {
+      Promise.all(config.statics.exclude && config.statics.exclude.map(d => {
         return fs.remove(path.resolve(targetDir, d), (err) => {
           if (err) throw err;
         });
@@ -146,7 +148,6 @@ function removeMainHash (callback) {
 }
 
 function buildRegex (urlParam) {
-  // let basehref = envConfig.basehref || envConfig.env.basehref || null
   if ( urlParam ){
     return new RegExp("^\/" + urlParam + "\/(.*)");
   } else {
@@ -183,7 +184,7 @@ function request (host, req, res, filePath) {
 
     });
   } else {
-    let req = http.get(host+filePath, ( _res ) => {
+    let req = http.get(host+filePath, (_res) => {
       _res.setEncoding("utf8");
       let body = "";
       _res.on("data", data => {
@@ -226,6 +227,7 @@ function setResponseContentType (req, res) {
 
   ext = path.extname(req.originalUrl);
   if (Boolean(ext.length)) {
+    res.append('Access-Control-Allow-Headers', 'Content-Type');
     res.append('Content-Type', MimeTypes[ext] || "text/plain");
   }
 }
@@ -289,49 +291,27 @@ function setupApp () {
   });
   
   app.get(buildRegex(), (req, res) => {
-    var filePath = req.params[0]; //.replace(new RegExp(`\/${envConfig.env.basehref}\/`),'');
+    var filePath = req.params[0];
     if (!envConfig.env.host || envConfig.env.host === "localhost" || envConfig.env.host === "local") {
-      // LOCAL HOST API
+      // LOCAL HOST
       envConfig.env.host = envConfig.env.host || "localhost";
-      
-      if (filePath.indexOf(envConfig.env.apiURL) >= 0) {
-        filePath = config.dataDir + '/' + filePath.split(envConfig.env.apiURL)[1];
-        response(envConfig.env.host, req, res, filePath, false);
-        return;
-      } 
-      // } else if (filePath.indexOf(envConfig.env.staticURL) >= 0) {
-      //   filePath = config.staticDir.path + '/' + filePath.split(envConfig.env.staticURL)[1];
-      //   response(envConfig.env.host, req, res, filePath, false);
-      // }
-      else {
-        filePath = path.resolve(config.distDir, filePath.replace(/^\//,''));
-        response(envConfig.env.host, req, res, filePath);
-        return;
-      }
+      filePath = path.resolve(config.distDir, filePath.replace(/^\//,''));
+      response(envConfig.env.host, req, res, filePath);
     } else {
+      // REMOTE HOST
       response(envConfig.env.host, req, res, filePath);
     }
   });
 
   app.post(buildRegex(), (req, res) => {
-    var filePath = req.params[0]; //.replace(new RegExp(`\/${envConfig.env.basehref}\/`),'');
+    var filePath = req.params[0];
     if (!envConfig.env.host || envConfig.env.host === "localhost" || envConfig.env.host === "local") {
-      // LOCAL HOST API
+      // LOCAL HOST
       envConfig.env.host = envConfig.env.host || "localhost";
-      if (filePath.indexOf(envConfig.env.apiURL) >= 0) {
-        filePath = config.dataDir + '/' + filePath.split(envConfig.env.apiURL)[1];
-        response(envConfig.env.host, req, res, filePath, false);
-      }
-      // } else if (filePath.indexOf(envConfig.env.staticURL) >= 0) {
-      //   filePath = config.staticDir.path + '/' + filePath.split(envConfig.env.staticURL)[1];
-      //   console.log(filePath);
-      //   response(envConfig.env.host, req, res, filePath, false);
-      // }
-      else {
-        filePath = path.resolve(config.distDir, filePath.replace(/^\//,''));
-        response(envConfig.env.host, req, res, filePath);
-      }
+      filePath = path.resolve(config.distDir, filePath.replace(/^\//,''));
+      response(envConfig.env.host, req, res, filePath);
     } else {
+      // REMOTE HOST
       response(envConfig.env.host, req, res, filePath);
     }
   });
@@ -349,17 +329,7 @@ function main () {
   
   var compiler;
 
-  if (envConfig["dev"] || !envConfig["build"]) {
-
-    if (!envConfig["dev"]) {
-      console.warn("Unrecognized target action. Fired development mode by default");
-    };
-
-    if (!envConfig.env.port) {
-      envConfig.env.port = 8000;
-      console.warn("Port not declared, set port 8000 by default")
-    }
-
+  if (envConfig["dev"]) {
     function callback () {
       const app = setupApp();
       
@@ -392,7 +362,6 @@ function main () {
     }
   } else if (envConfig["build"]){
     function callback () {
-      
       config.api.set("mode", envConfig["prod"] && "production" || "development");
 
       setupConfig();

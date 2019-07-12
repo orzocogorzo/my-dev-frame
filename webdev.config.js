@@ -7,11 +7,11 @@ var webpack = require('webpack')
 const config = {
 	distDir: path.resolve(__dirname, 'dist'),
   srcDir: path.resolve(__dirname, 'src'),
-  dataDir: path.resolve(__dirname, 'src/data'),
-  staticDir: {
-    path: path.resolve(__dirname, 'src/static'),
+  statics: {
+    path: path.resolve(__dirname, 'src/statics'),
+    dist: path.resolve(__dirname, 'dist/statics'),
     copy: true,
-    exclude: ["images","svg","fonts","media"]
+    exclude: ["fonts","media","svg"]
   },
   pwa: {
     path: path.resolve(__dirname, 'src/pwa'),
@@ -22,8 +22,11 @@ const config = {
     // pwa: path.resolve(__dirname, "src/pwa/sw.js")
   },
   output: {
-      path: path.resolve(__dirname, 'dist'),
-      filename: 'main.js'
+    path: path.resolve(__dirname, 'dist'),
+    // filename: 'main.js',
+    // publicPath: 'admin/'
+    chunkFilename: '[name].bundle.js',
+    filename: '[name].bundle.js'
   },
   envFile: path.resolve(__dirname, 'environments.js'),
   plugins: [
@@ -37,7 +40,8 @@ const config = {
       minify: true,
       hash: true,
       cache: true,
-      title: "My Dev Frame"
+      title: "MOAI Analytics",
+      base: `<base href="${process.env.BASE_HREF || ''}" />`
     }),
     new WebpackLiveReload({
       port: 35729,
@@ -54,6 +58,10 @@ const config = {
     }),
     new webpack.ProvidePlugin({
       'moment': 'moment'
+    }),
+    new webpack.EnvironmentPlugin({
+      NODE_ENV: process.env.NODE_ENV,
+      DEBUG: process.env.DEBUG
     })
   ],
   context: path.resolve(__dirname),
@@ -61,7 +69,12 @@ const config = {
     alias: {
       vue$: 'vue/dist/vue.esm.js'
     }
-  }
+  },
+  // optimization: {
+  //   splitChunks: {
+  //     chunks: 'all'
+  //   }
+  // }
 }
 
 module.exports = config;

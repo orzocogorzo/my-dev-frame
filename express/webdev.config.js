@@ -4,23 +4,40 @@ const user_config = require('../webdev.config');
 
 // replace default parametters with the iser configuration
 const config = Object.assign({
-	distDir: 'dist',
-  srcDir: 'src',
-  dataDir:'src/data',
-  staticDir: {
-    path: 'src/static',
-    copy: false
+	distDir: path.resolve(__dirname, 'dist'),
+  srcDir: path.resolve(__dirname, 'src'),
+  statics: {
+    path: path.resolve(__dirname, 'src/statics'),
+    dist: path.resolve(__dirname, 'dist/statics'),
+    copy: true,
+    exclude: []
   },
-  entry: "src/index.js",
+  pwa: {
+    path: path.resolve(__dirname, 'src/pwa'),
+    enabled: false
+  },
+  entry: {
+    main: ['@babel/polyfill', path.resolve(__dirname, "src/index.js")],
+    // pwa: path.resolve(__dirname, "src/pwa/sw.js")
+  },
   output: {
     path: path.resolve(__dirname, 'dist'),
-    filename: 'main.js'
+    // filename: 'main.js',
+    // publicPath: 'admin/'
+    chunkFilename: '[name].bundle.js',
+    filename: '[name].bundle.js'
   },
-  envFile: './environments.js', 
+  envFile: path.resolve(__dirname, 'environments.js'),
   module: {
     rules: []
   },
   plugins: [],
+  context: path.resolve(__dirname),
+  resolve: {
+    alias: {
+      vue$: 'vue/dist/vue.esm.js'
+    }
+  },
   api: wpAPI
 }, user_config);
 

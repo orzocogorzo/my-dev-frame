@@ -46,9 +46,18 @@ const config = {
         use: {
           loader: 'babel-loader',
           options: {
-            presets: ['env']
+            presets: [["es2015", {modules: false}], "env"],
+            // query: {
+            //   babelrc: false,
+            //   presets: [["es2015", {modules: false}], "env"],
+            // },
+            babelrc: false
+            // query: {
+            //   babelrc: false,
+            //   // presets: [["es2015", {modules: false}], "env"]
+            // }
           }
-        }
+        },
       }
     ]
   }
