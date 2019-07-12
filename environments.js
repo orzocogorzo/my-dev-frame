@@ -1,10 +1,10 @@
 module.exports = {
   dev: {
-    host: 'localhost',
     name: 'development',
-    apiURL: 'rest',
-    staticURL: 'static/',
-    port: 9000
+    host: 'localhost',
+    port: 8050,
+    apiURL: 'statics/data/',
+    staticURL: 'statics/'
   },
   "dev:remote": {
     name: 'remotehost',

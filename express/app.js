@@ -36,7 +36,6 @@ function registerEnvironment (callback) {
   envConfig["env"] = env = Object.assign({ 
     name: 'development',
     apiURL: 'statics/data/',
-    userURL: 'statics/user/',
     staticURL: 'statics/',
     port: 8050
   }, environments[envConfig["env"]]);

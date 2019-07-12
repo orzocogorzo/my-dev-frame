@@ -13,7 +13,6 @@ import resizeListener from './helpers/resizeListener.js';new resizeListener().bi
 import HttpClient from './http/client/index.js';new HttpClient().bind(Vue);
 
 window.globalEventBus = new EventBus({
-  onVideo: false,
   onMobile: false,
   isPortrait: false,
   isPhoneFormat: false
