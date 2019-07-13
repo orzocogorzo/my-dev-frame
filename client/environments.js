@@ -6,16 +6,16 @@ module.exports = {
     apiURL: 'statics/data/',
     staticURL: 'statics/'
   },
-  "dev:remote": {
-    name: 'remotehost',
-    apiURL: '{{protocol}}://{{host}}/rs/tracking/',
-    host: "{{protocol}}://{{host}}/tracking/",
-    staticURL: 'static/'
+  "dev:py": {
+    name: 'dev:py',
+    apiURL: 'http://localhost:5000/rest/',
+    host: "http://localhost:5000",
+    staticURL: 'http://localhost:5000/statics/'
   },
   pro: {
     name: 'production',
-    apiURL: './rest',
-    host: "{{domain}}",
+    apiURL: 'rest/',
+    host: "http://moaianalytics.com",
     staticURL: 'static/'
   }
 }
