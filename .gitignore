@@ -1,9 +1,15 @@
-node_modules
-dist/
+# CONFIGS
 *.DS_Store
 **/*.vscode
 **/*.idea
-**/node_modules
+
+# FILES
 **/__pycache__
 **/*.pyc
+
+# DIRECTORIES
+**/node_modules/*
+**/dist/*
+**/statics/*
 **/*.venv
+**/backups/*
